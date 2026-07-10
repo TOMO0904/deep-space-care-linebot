@@ -22,6 +22,7 @@ def test_crisis_route():
 def test_spacecraft_commands(tmp_path, monkeypatch):
     monkeypatch.setattr(app, "DB_PATH", tmp_path / "test.db")
     app.init_db()
+    assert "使えるコマンド" in app.generate_reply("u", "こんにちは")
     assert "船内メンタルケア端末" in app.generate_reply("u", "メニュー")
     assert "Mission Briefing" in app.generate_reply("u", "ミッション")
     assert "船内チェックイン" in app.generate_reply("u", "状態確認")

@@ -27,6 +27,7 @@ SAFE_MODULE = os.getenv("SAFE_MODULE", "共用モジュール")
 HABITAT_MODULES = ("個室モジュール", "共用モジュール", "観測窓", "運動エリア", "医療ラック")
 
 CRISIS_TERMS = ("死にたい", "消えたい", "自殺", "自傷", "殺したい", "もう生きられない")
+START_TERMS = ("start", "はじめる", "始める", "こんにちは", "こんばんは", "やあ", "使い方", "操作", "コマンド", "何ができる")
 SYSTEM_PROMPT = """あなたは深宇宙居住者を支える日本語の一次的メンタルケアAIです。
 役割は診断・治療ではなく、孤立した利用者の話を短く受け止め、感情の言語化と安全なセルフケアを支援することです。
 返答は原則180字以内。順序は 1) 共感的な要約 2) 今できる小さな行動を1つ 3) 答えやすい質問を1つ。
@@ -98,6 +99,18 @@ def menu_reply() -> str:
     )
 
 
+def command_hint() -> str:
+    return "\n\n操作に迷ったら『メニュー』と送ってください。下の候補ボタンからも選べます。"
+
+
+def onboard_welcome_reply() -> str:
+    return (
+        "搭乗を確認しました。\n"
+        "このBotは、深宇宙航行中の不安・孤立感・睡眠不調を船内で一次支援する試作端末です。\n\n"
+        + menu_reply()
+    )
+
+
 def mission_briefing() -> str:
     return (
         f"🛰️ Mission Briefing\n"
@@ -157,7 +170,8 @@ def crisis_reply() -> str:
 
 def safe_fallback_reply() -> str:
     return ("いまAI生成応答が不安定なので、船内一次支援モードで返します。まず30秒、息を長く吐いてください。"
-            f"つらさが7以上なら{MEDICAL_ROLE}へ共有し、{SAFE_MODULE}で誰かと合流してください。今のつらさは0〜10でいくつですか？")
+            f"つらさが7以上なら{MEDICAL_ROLE}へ共有し、{SAFE_MODULE}で誰かと合流してください。今のつらさは0〜10でいくつですか？"
+            + command_hint())
 
 
 def queue_ground_report(user_id: str) -> str:
@@ -174,6 +188,8 @@ def queue_ground_report(user_id: str) -> str:
 
 def mission_command(user_id: str, text: str) -> str | None:
     normalized = text.strip().lower()
+    if any(term in normalized for term in START_TERMS):
+        return onboard_welcome_reply()
     if normalized in {"メニュー", "menu", "help", "ヘルプ", "宇宙船モード"}:
         return menu_reply()
     if normalized in {"ミッション", "通信状況", "ミッション状況", "status", "briefing"}:
@@ -210,7 +226,7 @@ def generate_reply(user_id: str, text: str) -> str:
     if any(term in text for term in CRISIS_TERMS):
         return crisis_reply()
     if not GEMINI_API_KEY:
-        return "話してくれてありがとう。今の気持ちを0〜10で表すと、つらさはいくつくらいですか？まず30秒、ゆっくり息を吐いてみましょう。"
+        return "話してくれてありがとう。今の気持ちを0〜10で表すと、つらさはいくつくらいですか？まず30秒、ゆっくり息を吐いてみましょう。" + command_hint()
 
     history = recent_context(user_id)
     conversation = "\n".join(f"{item['role']}: {item['content']}" for item in history)
@@ -231,13 +247,13 @@ def generate_reply(user_id: str, text: str) -> str:
         response.raise_for_status()
         data = response.json()
         if data.get("output_text"):
-            return data["output_text"].strip()[:1000]
+            return (data["output_text"].strip() + command_hint())[:1000]
         for step in data.get("steps", []):
             if step.get("type") != "model_output":
                 continue
             text_blocks = [block.get("text", "") for block in step.get("content", []) if block.get("type") == "text"]
             if text_blocks:
-                return "".join(text_blocks).strip()[:1000]
+                return ("".join(text_blocks).strip() + command_hint())[:1000]
         return safe_fallback_reply()
     except Exception:
         return safe_fallback_reply()
@@ -308,7 +324,7 @@ async def callback(request: Request, x_line_signature: str = Header(default=""))
     for event in payload.get("events", []):
         if event.get("type") == "follow":
             user_id = event.get("source", {}).get("userId", "unknown")
-            welcome = "搭乗を確認しました。\n" + menu_reply()
+            welcome = onboard_welcome_reply()
             save_message(user_id, "assistant", welcome)
             await line_reply(event["replyToken"], welcome)
             continue
