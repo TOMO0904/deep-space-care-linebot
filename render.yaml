@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: deep-space-care-linebot
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: LINE_CHANNEL_SECRET
+        sync: false
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
+      - key: GEMINI_TIMEOUT_MS
+        value: "10000"
+      - key: MISSION_NAME
+        value: Deep Space Habitat-1
+      - key: MEDICAL_ROLE
+        value: 船内医療担当クルー
+      - key: SAFE_MODULE
+        value: 共用モジュール
