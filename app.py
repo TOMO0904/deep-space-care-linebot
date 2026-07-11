@@ -87,15 +87,68 @@ def delay_label() -> str:
 
 def menu_reply() -> str:
     return (
-        f"🚀 {MISSION_NAME} 船内メンタルケア端末\n"
+        f"🚀 {MISSION_NAME} 船内AIクルー端末\n"
         "使えるコマンド：\n"
-        "・ミッション：現在の船内モード\n"
+        "・今日のミッション：船内生活クエスト\n"
+        "・船内ステータス：通信/環境/士気の表示\n"
         "・状態確認：つらさ/睡眠/孤立感チェック\n"
+        "・地球通信：地球へ送る短いメッセージ作成\n"
+        "・クルー診断：今日の船内ロール提案\n"
+        "・イベント：宇宙船内の小さな出来事\n"
         "・船内ログ：地上送信用の短い記録\n"
         "・地球を見たい：俯瞰効果ケア\n"
         "・睡眠：深宇宙の睡眠リセット\n"
         "・船内支援：クルーへ助けを求める文面\n"
         "・地上へ送る：会話要約を送信待ちキューへ保存"
+    )
+
+
+def daily_mission_reply() -> str:
+    return (
+        "🎯 今日の船内ミッション\n"
+        "1) 観測窓または画像で、地球の色を3つ記録\n"
+        "2) クルー1人に短いチェックインを送る\n"
+        "3) 共用モジュールを2分だけ整える\n"
+        "達成したら『船内ログ』に残してください。これは士気・文化・生活リズムを守るためのミッションです。"
+    )
+
+
+def ship_status_reply() -> str:
+    return (
+        "🛰️ 船内ステータス\n"
+        f"通信：{delay_label()}／地上返信待ちに依存しない\n"
+        "居住：個室・共用モジュール・観測窓をローテーション推奨\n"
+        "士気：小さな達成を記録するフェーズ\n"
+        f"安全集合：{SAFE_MODULE}\n"
+        "次の操作：『今日のミッション』か『状態確認』"
+    )
+
+
+def earth_message_reply() -> str:
+    return (
+        "📡 地球通信ドラフト\n"
+        "地球へ送るなら、次の3行で書くと伝わりやすいです。\n"
+        "1) 今日見たもの：\n"
+        "2) いまの気持ち：\n"
+        "3) 地球側に聞きたいこと：\n"
+        "書けたら『地上へ送る』で送信待ちキューに保存できます。"
+    )
+
+
+def crew_role_reply() -> str:
+    return (
+        "🧑‍🚀 今日のクルーロール：Habitat Listener\n"
+        "任務は、船内の音・光・人の気配を1つ観察してログに残すことです。"
+        "閉鎖空間では、環境の小さな変化に名前を付けるだけでストレスを扱いやすくなります。"
+    )
+
+
+def ship_event_reply() -> str:
+    return (
+        "✨ 船内イベント発生\n"
+        "『地球の夜側が見える時間』です。観測窓に行けるなら30秒だけ眺め、"
+        "見えた光を「都市」「雲」「海」「記憶」のどれに近いか選んでください。"
+        "これは俯瞰効果を対話に変える小さな儀式です。"
     )
 
 
@@ -194,6 +247,16 @@ def mission_command(user_id: str, text: str) -> str | None:
         return menu_reply()
     if normalized in {"ミッション", "通信状況", "ミッション状況", "status", "briefing"}:
         return mission_briefing()
+    if normalized in {"今日のミッション", "デイリー", "daily", "quest"}:
+        return daily_mission_reply()
+    if normalized in {"船内ステータス", "ステータス", "ship status", "status2"}:
+        return ship_status_reply()
+    if normalized in {"地球通信", "地球へ送る文", "earth message"}:
+        return earth_message_reply()
+    if normalized in {"クルー診断", "ロール", "role"}:
+        return crew_role_reply()
+    if normalized in {"イベント", "船内イベント", "event"}:
+        return ship_event_reply()
     if normalized in {"状態確認", "チェックイン", "check-in", "checkin"}:
         return (
             "🩺 船内チェックイン\n"
@@ -260,7 +323,7 @@ def generate_reply(user_id: str, text: str) -> str:
 
 
 def quick_reply_items() -> list[dict[str, object]]:
-    labels = ["メニュー", "ミッション", "状態確認", "地球を見たい", "睡眠", "地上へ送る"]
+    labels = ["メニュー", "今日のミッション", "船内ステータス", "状態確認", "地球通信", "地上へ送る"]
     return [
         {"type": "action", "action": {"type": "message", "label": label[:20], "text": label}}
         for label in labels
