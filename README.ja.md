@@ -1,65 +1,61 @@
 [English](README.md) | **日本語**
 
-# Deep Space Care — LINE Bot prototype
+# Deep Space Care — LINE Bot プロトタイプ
 
-深宇宙の通信遅延・閉鎖隔離環境を想定した、一次的メンタルケアLINE Botです。診断や治療の代替ではありません。通常時は「共感 → 小さなセルフケア → 質問」を返し、危機表現は生成AIへ渡す前に検出して船内の有人支援へ誘導します。
+LINEで使う、一次的なメンタルケアのチャットボットです。深宇宙ミッションのように、地上との通信に大きな遅延がある閉鎖・隔離環境のクルーを想定しています。これは**プロトタイプ（デモ）**であり、医療製品ではなく、診断や治療の代わりにもなりません。
 
-## 宇宙船内モード
+## 課題
 
-Botは地上との常時接続を前提にせず、船内で一次対応を完結させる設計です。
+地上の支援と常につながれない状況では、気持ちの面での一次対応を船内で完結させる必要があります。また、そうした場面のボットは安全でなければなりません。誰かが危機的な状態を訴えたときに、生成AIに即興で答えさせてはいけません。
 
-- `状態確認`: つらさ・睡眠・食欲・孤立感・必要な支援を定型チェック
-- `通信状況`: ミッション名、通信条件、船内引継ぎ先、安全集合場所を表示
-- `船内支援`: 医療担当クルーへの連絡文とバディ対応を提示
-- `地上へ送る`: 会話要約をSQLiteの送信待ちキューへ保存し、通信回復後の同期を想定
-- 危機表現: 地上返信を待たず、危険物から離れて共用モジュールへ移動し、船内心理安全プロトコルを開始
+## 解決方法
 
-`MISSION_NAME`、`COMM_DELAY_MINUTES`、`MEDICAL_ROLE`、`SAFE_MODULE`は宇宙船ごとに`.env`で変更できます。`GEMINI_TIMEOUT_MS`でGemini応答待ち時間を調整できます。実運用ではLINE自体も地上ネットワーク依存となるため、同じAPIを船内LAN用チャット端末へ接続し、LINEは地上実証用UIとして利用する構成を想定します。
+- 通常のメッセージには、Google Geminiで **共感 → 小さなセルフケア → 次の質問** という流れの返信を作ります。
+- 危機を示す表現は、文章が生成AIに渡る**前に**検出し、船内の有人サポートへ案内します。
+- ミッション向けの「船内モード」コマンド: 状態チェック、通信状況、船内の相談先、地上への送信キュー（SQLiteに保存し、通信が戻ったら同期）。
+- Geminiの応答が遅い・使えない場合は、固定の安全な返信に切り替えます（タイムアウトは設定可能）。
+- APIキーなしのデモモード（固定返信）で、キーがなくても試せます。
 
-## 1. ローカル起動
+## 主な機能
 
-```powershell
+- LINE Messaging APIのWebhookで、リクエスト本文そのものに対する **HMAC-SHA256署名検証**
+- 危機表現の事前フィルターと、有人サポートへの引き継ぎ
+- SQLiteへの会話履歴の保存
+- ミッションの設定値（`MISSION_NAME`、`COMM_DELAY_MINUTES`、`MEDICAL_ROLE`、`SAFE_MODULE`、`GEMINI_TIMEOUT_MS`）を環境変数で指定
+- LINEなしで試せる `/demo` HTTPエンドポイント
+- 自動テスト（`pytest`）、デプロイ用の Dockerfile と `render.yaml`
+
+## 技術スタック
+
+Python · FastAPI · Uvicorn · httpx · LINE Messaging API · Google Gemini API · SQLite · pytest · Docker / Render
+
+## セットアップ
+
+```bash
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+source .venv/bin/activate        # Windows: .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-Copy-Item .env.example .env
+cp .env.example .env             # キーを記入。デモモードなら GEMINI_API_KEY は空のまま
 uvicorn app:app --reload --port 8000
 ```
 
-`GEMINI_API_KEY`が空でも固定応答のデモモードで動きます。
+デモ用エンドポイントを試す:
 
-```powershell
-Invoke-RestMethod -Method Post http://localhost:8000/demo `
-  -ContentType 'application/json' `
-  -Body '{"text":"地球が遠く感じて眠れない"}'
+```bash
+curl -X POST http://localhost:8000/demo -H "Content-Type: application/json" \
+  -d '{"text":"眠れなくて、地球がとても遠く感じる"}'
 ```
 
-## 2. LINE接続
+LINEにつなぐ場合は、Messaging APIのチャネルを作成し、チャネルシークレットとアクセストークンを `.env` に設定します。アプリをHTTPSで公開し、Webhook URLを `https://<your-host>/callback` に設定してください。トークンやAPIキーは絶対にコミットしないでください。
 
-1. LINE DevelopersでMessaging APIチャネルを作成する。
-2. Channel secretとChannel access tokenを`.env`へ設定する。
-3. HTTPSで公開する（Render、Railway、Cloud Run、またはデモ時はngrok等）。
-4. Webhook URLを `https://公開URL/callback` に設定し、Use webhookを有効化する。
-5. LINE Developersの「検証」を実行してから公式アカウントを友だち追加する。
+テストは `pytest -q` で実行します。
 
-Webhookは受信した生の本文に対してHMAC-SHA256署名を検証します。アクセストークンやAPIキーをGitへコミットしないでください。
+## 対応範囲と安全性
 
-## プロダクト境界
+- 行うこと: 話を聴く、気持ちを言葉にする手助け、短い呼吸法・グラウンディングの提案、有人サポートへのエスカレーション。
+- 行わないこと: 診断、治療、服薬の助言、緊急サービスの代わり。
+- 実際に運用するには、研究への同意取得、ログの匿名化、保存期間のルール、専門家によるレビューが必要です。
 
-- できること: 傾聴、感情の言語化、短い呼吸・グラウンディング提案、会話履歴の保持、危機時の有人支援誘導
-- しないこと: 診断、治療、服薬指示、緊急対応の代替、完全自律の安全保証
-- 実証時: 研究同意、ログの匿名化・保存期間、退出方法、専門家レビューを別途設計する
+## ステータス
 
-## 評価案
-
-- 主観指標: 応答前後のストレス0–10、安心感、文化的違和感
-- 行動指標: 継続率、提案実行率、有人支援への適切な移行率
-- システム指標: 応答時間、通信断時の可用性、誤警報・見逃し率
-
-## テスト
-
-```powershell
-pytest -q
-```
-
-参考: LINE Messaging APIのWebhookは署名検証が必須で、reply tokenは一度だけ・原則1分以内に使用します。AI応答にはGemini APIを利用し、遅延時は船内一次支援のフェイルセーフ応答へ切り替えます。
+コンセプトデモとして作ったプロトタイプです。船内モードの詳しい説明、セットアップ手順、5分間の発表用台本は [docs/DETAILS.ja.md](docs/DETAILS.ja.md) にあります。

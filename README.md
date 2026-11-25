@@ -1,4 +1,4 @@
-[English](README.md) | [日本語](README.ja.md)
+**English** | [日本語](README.ja.md)
 
 # Deep Space Care — LINE Bot Prototype
 
@@ -58,4 +58,4 @@ Run the tests with `pytest -q`.
 
 ## Status
 
-Prototype built as a concept demo. Documentation (setup guide, 5-minute presentation script) is in Japanese; see [README.ja.md](README.ja.md).
+Prototype built as a concept demo. Detailed on-board mode notes, setup guide and a 5-minute presentation script (Japanese) are in [docs/DETAILS.ja.md](docs/DETAILS.ja.md).
